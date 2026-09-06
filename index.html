@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer Quick Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-main);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      outline: none;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      background-color: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    li {
+      background-color: #0f172a;
+      border: 1px solid var(--border);
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: transform 0.1s ease;
+    }
+
+    li:hover {
+      transform: translateX(4px);
+    }
+
+    .btn-delete {
+      background-color: transparent;
+      color: var(--danger);
+      padding: 0.25rem 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .btn-delete:hover {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    .timestamp {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Task & Activity Monitor</h1>
+      <p id="live-clock">Memuat waktu sistem...</p>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Item Aktif</span>
+        <span class="stat-value" id="total-count">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Status Lingkungan</span>
+        <span class="stat-value" style="color: var(--success);">Online (Local)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Catatan Cepat</div>
+      <div class="input-group">
+        <input type="text" id="task-input" placeholder="Tulis aktivitas atau catatan..." />
+        <button id="add-btn">Tambah</button>
+      </div>
+
+      <ul id="task-list"></ul>
+    </div>
+  </div>
+
+  <script>
+    // 1. Jam Real-Time
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("live-clock").textContent = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // 2. State & DOM Manipulation
+    const taskInput = document.getElementById("task-input");
+    const addBtn = document.getElementById("add-btn");
+    const taskList = document.getElementById("task-list");
+    const totalCount = document.getElementById("total-count");
+
+    let tasks = [
+      { id: 1, text: "Uji coba runtime Node.js di VS Code", time: "Baru saja" },
+      { id: 2, text: "Cek konfigurasi port & routing jaringan", time: "Baru saja" }
+    ];
+
+    function renderTasks() {
+      taskList.innerHTML = "";
+      tasks.forEach((item) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div>
+            <div>${item.text}</div>
+            <div class="timestamp">${item.time}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteTask(${item.id})">Hapus</button>
+        `;
+        taskList.appendChild(li);
+      });
+      totalCount.textContent = tasks.length;
+    }
+
+    function addTask() {
+      const val = taskInput.value.trim();
+      if (!val) return;
+
+      const now = new Date();
+      tasks.unshift({
+        id: Date.now(),
+        text: val,
+        time: now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+      });
+
+      taskInput.value = "";
+      renderTasks();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter((t) => t.id !== id);
+      renderTasks();
+    }
+
+    addBtn.addEventListener("click", addTask);
+    taskInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") addTask();
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
