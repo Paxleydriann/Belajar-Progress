@@ -1,88 +1,97 @@
-// inventory.js - Program Manajemen & Analisis Stok Sederhana
-class InventoryManager {
-  constructor() {
-    this.items = [];
+// index.js - Simulator Monitoring Status Server & Jaringan (Async/Promise)
+
+class ServerMonitor {
+  constructor(networkName) {
+    this.networkName = networkName;
+    this.nodes = [];
   }
 
-  // Menambahkan produk ke dalam katalog
-  addItem(id, name, category, stock, price) {
-    this.items.push({ id, name, category, stock, price });
-    console.log(`[+] Barang ditambahkan: ${name} (${category})`);
+  // Mendaftarkan endpoint / host server
+  registerNode(id, host, service, maxThresholdMs = 120) {
+    this.nodes.push({ id, host, service, maxThresholdMs });
   }
 
-  // Simulasi transaksi penjualan barang
-  sellItem(id, quantity) {
-    const item = this.items.find((i) => i.id === id);
-    if (!item) {
-      console.log(`[-] Error: Produk ID ${id} tidak ditemukan.`);
-      return;
-    }
-    if (item.stock < quantity) {
-      console.log(`[-] Peringatan: Stok ${item.name} tidak cukup (Tersedia: ${item.stock}).`);
-      return;
-    }
-    item.stock -= quantity;
-    console.log(`[✓] Berhasil menjual ${quantity} unit "${item.name}". Sisa stok: ${item.stock}`);
+  // Simulasi ping asinkron menggunakan Promise dan setTimeout
+  async pingNode(node) {
+    return new Promise((resolve) => {
+      const latency = Math.floor(Math.random() * 200) + 15; // 15ms - 215ms
+      const isOnline = Math.random() > 0.15; // Peluang online 85%
+
+      setTimeout(() => {
+        let status = "HEALTHY";
+        if (!isOnline) {
+          status = "DOWN";
+        } else if (latency > node.maxThresholdMs) {
+          status = "HIGH_LATENCY";
+        }
+
+        resolve({
+          id: node.id,
+          host: node.host,
+          service: node.service,
+          latency: isOnline ? `${latency} ms` : "N/A",
+          rawLatency: isOnline ? latency : null,
+          status: status,
+        });
+      }, Math.floor(Math.random() * 400) + 100);
+    });
   }
 
-  // Menghitung total valuasi nilai barang di gudang
-  getTotalValuation() {
-    return this.items.reduce((total, item) => total + item.stock * item.price, 0);
+  // Memindai semua target secara paralel dengan Promise.all
+  async scanAll() {
+    console.log(`\n[>>] Memulai pemindaian: "${this.networkName}"...`);
+    console.log(`[..] Memeriksa ${this.nodes.length} node target secara simultan...\n`);
+
+    const results = await Promise.all(this.nodes.map((n) => this.pingNode(n)));
+    this.renderDashboard(results);
   }
 
-  // Filter barang dengan stok menipis (di bawah batas minimum)
-  getLowStockItems(threshold = 5) {
-    return this.items.filter((item) => item.stock <= threshold);
-  }
-
-  // Agregasi jumlah total unit per kategori
-  getCategorySummary() {
-    return this.items.reduce((acc, item) => {
-      acc[item.category] = (acc[item.category] || 0) + item.stock;
-      return acc;
-    }, {});
-  }
-
-  // Menampilkan laporan ringkas dalam bentuk tabel konsol
-  displayReport() {
-    console.log("\n==================== LAPORAN INVENTARIS ====================");
+  // Menampilkan ringkasan metrik performa
+  renderDashboard(results) {
+    console.log("================= DASHBOARD KESEHATAN SERVER =================");
     
     console.table(
-      this.items.map((item) => ({
-        ID: item.id,
-        "Nama Produk": item.name,
-        Kategori: item.category,
-        Stok: item.stock,
-        "Harga Satuan": `Rp ${item.price.toLocaleString("id-ID")}`,
-        "Total Nilai": `Rp ${(item.stock * item.price).toLocaleString("id-ID")}`,
+      results.map((r) => ({
+        ID: r.id,
+        "Alamat Host": r.host,
+        Layanan: r.service,
+        Latensi: r.latency,
+        Status: r.status,
       }))
     );
 
-    console.log(`Total Valuasi Aset : Rp ${this.getTotalValuation().toLocaleString("id-ID")}`);
-    
-    const lowStock = this.getLowStockItems();
-    if (lowStock.length > 0) {
-      console.log(`\n⚠️  Peringatan Stok Menipis (<= 5 unit):`);
-      lowStock.forEach((i) => console.log(`   • ${i.name} (Sisa: ${i.stock})`));
-    }
+    const healthy = results.filter((r) => r.status === "HEALTHY").length;
+    const warning = results.filter((r) => r.status === "HIGH_LATENCY").length;
+    const down = results.filter((r) => r.status === "DOWN").length;
 
-    console.log("\nRingkasan Unit per Kategori:", this.getCategorySummary());
-    console.log("============================================================\n");
+    const validLatencies = results.filter((r) => r.rawLatency !== null).map((r) => r.rawLatency);
+    const avgLatency =
+      validLatencies.length > 0
+        ? (validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length).toFixed(1)
+        : 0;
+
+    console.log("Ringkasan Metrik:");
+    console.log(` • Normal (Healthy)    : ${healthy} server`);
+    console.log(` • Peringatan (Lambat) : ${warning} server`);
+    console.log(` • Gangguan (Down)     : ${down} server`);
+    console.log(` • Rata-rata Latensi   : ${avgLatency} ms`);
+
+    if (down > 0 || warning > 0) {
+      console.log(`\n⚠️  Perhatian: Terdeteksi ${down + warning} node membutuhkan pengecekan rute/layanan.`);
+    } else {
+      console.log("\n✅ Semua node jaringan beroperasi normal tanpa kendala.");
+    }
+    console.log("==============================================================\n");
   }
 }
 
-// --- Simulasi Eksekusi ---
-const store = new InventoryManager();
+// --- Inisialisasi & Eksekusi ---
+const monitor = new ServerMonitor("Infrastructure Local & Cloud Nodes");
 
-// 1. Input data barang
-store.addItem("NET-01", "Router Dual-Band AC1200", "Networking", 15, 450000);
-store.addItem("NET-02", "Managed PoE Switch 8-Port", "Networking", 4, 850000);
-store.addItem("CAB-01", "Kabel UTP Cat6 Roll 305m", "Kabel", 8, 920000);
-store.addItem("ELC-01", "Uninterruptible Power Supply 650VA", "Power", 3, 620000);
+monitor.registerNode("SRV-01", "192.168.1.1", "Gateway Router", 40);
+monitor.registerNode("SRV-02", "192.168.1.10", "Database MariaDB", 90);
+monitor.registerNode("SRV-03", "192.168.1.25", "Web Server (Nginx)", 100);
+monitor.registerNode("SRV-04", "10.10.0.1", "RADIUS / Hotspot Server", 60);
+monitor.registerNode("SRV-05", "1.1.1.1", "Cloudflare DNS Resolver", 80);
 
-// 2. Transaksi keluar
-store.sellItem("NET-01", 5);
-store.sellItem("ELC-01", 2);
-
-// 3. Cetak laporan
-store.displayReport();
+monitor.scanAll();
